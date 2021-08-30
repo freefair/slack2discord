@@ -6,16 +6,17 @@ import (
 	"github.com/slack-go/slack"
 	"regexp"
 	"slack2discord/helper"
+	"slack2discord/image"
 	"slack2discord/model"
 	"strconv"
 	"strings"
 	"time"
 )
 
-var fileMap = map[string]string {
-	"jpg": "image/jpeg",
+var fileMap = map[string]string{
+	"jpg":  "image/jpeg",
 	"jpeg": "image/jpeg",
-	"png": "image/png",
+	"png":  "image/png",
 }
 
 type Client struct {
@@ -24,6 +25,7 @@ type Client struct {
 	SlackClient *slack.Client
 	users       map[string]string
 	ownUserId   string
+	ownBotId    string
 }
 
 func NewClient(token string, channelId string) *Client {
@@ -37,6 +39,7 @@ func NewClient(token string, channelId string) *Client {
 		panic(err)
 	}
 	c.ownUserId = identity.UserID
+	c.ownBotId = identity.BotID
 	return c
 }
 
@@ -61,7 +64,7 @@ func (c Client) cleanupMessage(text string) string {
 	matches := regex.FindAllStringSubmatch(text, -1)
 	for i := range matches {
 		match := matches[i]
-		text = strings.Replace(text, match[0], "@" + c.GetUserName(match[1]), -1)
+		text = strings.Replace(text, match[0], "@"+c.GetUserName(match[1]), -1)
 	}
 	return text
 }
@@ -87,17 +90,33 @@ func (c Client) mapAttachments(attachments []slack.File) []model.Attachment {
 		if err != nil {
 			panic(err)
 		}
+		data, err := image.TranslateToReadableImageForAll(download)
+		if err != nil {
+			panic(err)
+		}
 		filetype := "application/octet-stream"
 		if t, ok := fileMap[attachment.Filetype]; ok {
 			filetype = t
 		}
 		result = append(result, model.Attachment{
-			Data:        bytes.NewReader(download),
+			Data:        bytes.NewReader(data),
 			ContentType: filetype,
 			Name:        attachment.Name,
 		})
 	}
 	return result
+}
+
+func (c Client) parseGiphyMessage(message slack.Message) model.Message {
+	imageBlock := message.Blocks.BlockSet[0]
+	return model.Message{
+		Id:             message.Timestamp,
+		Text:           imageBlock.(*slack.ImageBlock).ImageURL,
+		User:           c.GetUserName(message.User),
+		DoNotPrintUser: true,
+		Time:           formatTimestamp(message.Timestamp),
+		Attachments:    []model.Attachment{},
+	}
 }
 
 func (c Client) GetNewMessages(last string) []model.Message {
@@ -116,8 +135,11 @@ func (c Client) GetNewMessages(last string) []model.Message {
 
 	for i := range history.Messages {
 		message := history.Messages[i]
-		if message.User == c.ownUserId || len(message.BotID) > 0 {
+		if message.User == c.ownUserId || message.BotID == c.ownBotId {
 			continue
+		}
+		if message.BotProfile != nil && message.BotProfile.Name == "giphy" {
+			result = append([]model.Message{c.parseGiphyMessage(message)}, result...)
 		}
 		result = append([]model.Message{{
 			Id:          message.Timestamp,
@@ -137,12 +159,12 @@ func (c Client) SendMessage(message model.Message) {
 		for i := range message.Attachments {
 			attachment := message.Attachments[i]
 			_, err := c.SlackClient.UploadFile(slack.FileUploadParameters{
-				Reader:   attachment.Data,
-				Filename: "file",
-				Channels: []string{c.ChannelId},
+				Reader:         attachment.Data,
+				Filename:       "file",
+				Channels:       []string{c.ChannelId},
 				InitialComment: comment,
-				Filetype: attachment.ContentType,
-				Title: message.User,
+				Filetype:       attachment.ContentType,
+				Title:          message.User,
 			})
 
 			comment = ""

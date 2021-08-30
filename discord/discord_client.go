@@ -6,6 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"regexp"
 	"slack2discord/helper"
+	"slack2discord/image"
 	"slack2discord/model"
 	"strings"
 	"time"
@@ -53,8 +54,12 @@ func (c Client) mapAttachments(attachments []*discordgo.MessageAttachment) []mod
 		if err != nil {
 			panic(err)
 		}
+		data, err := image.TranslateToReadableImageForAll(download)
+		if err != nil {
+			panic(err)
+		}
 		result = append(result, model.Attachment{
-			Data:        bytes.NewReader(download),
+			Data:        bytes.NewReader(data),
 			ContentType: "",
 			Name:        attachment.Filename,
 		})
@@ -70,7 +75,7 @@ func (c Client) cleanupMessage(text string, message *discordgo.Message) string {
 		for mi := range message.Mentions {
 			mention := message.Mentions[mi]
 			if mention.ID == match[1] {
-				text = strings.Replace(text, match[0], "@" + mention.Username, -1)
+				text = strings.Replace(text, match[0], "@"+mention.Username, -1)
 			}
 		}
 	}
@@ -113,16 +118,24 @@ func (c Client) SendMessage(message model.Message) {
 				Reader:      attachment.Data,
 			})
 		}
+		messageText := message.User + ": " + message.Text
+		if message.DoNotPrintUser {
+			messageText = message.Text
+		}
 		_, err := c.DiscordClient.ChannelMessageSendComplex(c.ChannelId, &discordgo.MessageSend{
-			Content: message.User + ": " + message.Text,
-			Files: files,
+			Content: messageText,
+			Files:   files,
 		})
 		if err != nil {
 			fmt.Println(err)
 			panic(err)
 		}
 	} else {
-		_, err := c.DiscordClient.ChannelMessageSend(c.ChannelId, message.User+": "+message.Text)
+		messageText := message.User + ": " + message.Text
+		if message.DoNotPrintUser {
+			messageText = message.Text
+		}
+		_, err := c.DiscordClient.ChannelMessageSend(c.ChannelId, messageText)
 		if err != nil {
 			panic(err)
 		}

@@ -12,9 +12,10 @@ type Attachment struct {
 }
 
 type Message struct {
-	Id          string
-	Text        string
-	User        string
-	Time        time.Time
-	Attachments []Attachment
+	Id             string
+	Text           string
+	User           string
+	DoNotPrintUser bool
+	Time           time.Time
+	Attachments    []Attachment
 }
