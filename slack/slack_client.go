@@ -83,7 +83,7 @@ func (c Client) mapAttachments(attachments []slack.File) []model.Attachment {
 		if len(url) <= 0 {
 			url = attachment.URLPrivateDownload
 		}
-		download, err := helper.HTTPDownload(url)
+		download, err := helper.HTTPDownloadWithToken(url, c.Token)
 		if err != nil {
 			panic(err)
 		}
