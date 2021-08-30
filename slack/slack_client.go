@@ -79,9 +79,9 @@ func (c Client) mapAttachments(attachments []slack.File) []model.Attachment {
 	result := []model.Attachment{}
 	for i := range attachments {
 		attachment := attachments[i]
-		url := attachment.URL
+		url := attachment.URLDownload
 		if len(url) <= 0 {
-			url = attachment.URLPrivate
+			url = attachment.URLPrivateDownload
 		}
 		download, err := helper.HTTPDownload(url)
 		if err != nil {
