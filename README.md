@@ -6,9 +6,9 @@ This is a Slack and Discord bot which syncs a Slack and Discord channel, so that
 The easiest way would be to use the prebuild docker-container. Just start it with this command `docker run frisch12/slack2discord my-container -- [ARGUMENTS]`
 
 ### Command line arguments
-**redis-host**: Hostname and port of the redis to use (used to cache the last transmitted messages and usernames in case of a container restart). Default: 127.0.0.1:6379
+**redis-host**: Hostname and port of the redis to use (used to cache the last transmitted messages and usernames in case of a container restart). Default: `127.0.0.1:6379`
 
-**redis-pw**: Password for the redis to connect to. Default: <empty>`
+**redis-pw**: Password for the redis to connect to. Default: `<empty>`
 
 **redis-db**: Database to use in redis. Default: `10`
 
